@@ -1,0 +1,326 @@
+-- phpMyAdmin SQL Dump
+-- version 5.2.1
+-- https://www.phpmyadmin.net/
+--
+-- Host: 127.0.0.1
+-- Tempo de geração: 06/06/2025 às 16:03
+-- Versão do servidor: 10.4.32-MariaDB
+-- Versão do PHP: 8.2.12
+
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+
+--
+-- Banco de dados: `sistema_produtos`
+--
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `categorias`
+--
+
+CREATE TABLE `categorias` (
+  `id` int(11) NOT NULL,
+  `nome` varchar(100) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Despejando dados para a tabela `categorias`
+--
+
+INSERT INTO `categorias` (`id`, `nome`) VALUES
+(1, 'Transmissao'),
+(2, 'MOTOR'),
+(3, 'CHASSIS'),
+(9, 'Instrumentos Musicais'),
+(10, 'Lubrificantes'),
+(11, 'Parafusostres'),
+(12, 'cat_teste'),
+(13, 'catUSER');
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `login`
+--
+
+CREATE TABLE `login` (
+  `id` int(11) NOT NULL,
+  `email` varchar(100) NOT NULL,
+  `senha` varchar(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Despejando dados para a tabela `login`
+--
+
+INSERT INTO `login` (`id`, `email`, `senha`) VALUES
+(1, 'testelogin@gmail.com', '85858557'),
+(2, 'pebinha@peba.com', '85858557'),
+(3, 'admin@peba.com', '85858557'),
+(4, 'pebinha_caio@peba.com', '85858557'),
+(5, 'pebinhaAPRESENTACAO@peba.com', '85858557');
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `movimentacoes`
+--
+
+CREATE TABLE `movimentacoes` (
+  `id` int(11) NOT NULL,
+  `produto_id` int(11) NOT NULL,
+  `tipo` enum('ENTRADA','SAIDA') NOT NULL,
+  `quantidade` int(11) NOT NULL,
+  `data_movimentacao` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Despejando dados para a tabela `movimentacoes`
+--
+
+INSERT INTO `movimentacoes` (`id`, `produto_id`, `tipo`, `quantidade`, `data_movimentacao`) VALUES
+(1, 7, 'ENTRADA', 10, '2025-06-02 20:39:05'),
+(2, 7, 'SAIDA', 3, '2025-06-02 20:39:05'),
+(3, 7, 'SAIDA', 3, '2025-06-02 20:39:51'),
+(4, 12, 'ENTRADA', 100, '2025-06-03 13:06:50'),
+(5, 12, 'SAIDA', 10, '2025-06-03 14:12:32'),
+(6, 7, 'ENTRADA', 100, '2025-06-03 14:16:05'),
+(7, 7, 'ENTRADA', 22, '2025-06-03 14:17:31'),
+(8, 7, 'SAIDA', 100, '2025-06-04 13:29:23'),
+(9, 7, 'SAIDA', 10, '2025-06-04 13:37:18'),
+(10, 2, 'ENTRADA', 15, '2025-06-04 13:49:02'),
+(11, 12, 'ENTRADA', 200, '2025-06-04 23:25:47'),
+(12, 7, 'ENTRADA', 99, '2025-06-04 23:26:40'),
+(13, 3, 'ENTRADA', 10, '2025-06-05 03:47:58'),
+(14, 3, 'ENTRADA', 10, '2025-06-05 03:48:18'),
+(15, 2, 'SAIDA', 10, '2025-06-05 03:58:38'),
+(16, 7, 'SAIDA', 100, '2025-06-05 03:58:59'),
+(17, 3, 'SAIDA', 20, '2025-06-05 15:21:47'),
+(18, 13, 'ENTRADA', 15, '2025-06-05 16:32:20'),
+(19, 16, 'SAIDA', 30, '2025-06-05 17:09:55'),
+(20, 19, 'ENTRADA', 1000, '2025-06-06 16:11:46'),
+(21, 21, 'ENTRADA', 20, '2025-06-06 16:36:26');
+
+--
+-- Acionadores `movimentacoes`
+--
+DELIMITER $$
+CREATE TRIGGER `trg_entrada_produto` AFTER INSERT ON `movimentacoes` FOR EACH ROW BEGIN
+    IF NEW.tipo = 'ENTRADA' THEN
+        UPDATE produtos
+        SET quantidade = quantidade + NEW.quantidade
+        WHERE id = NEW.produto_id;
+    END IF;
+END
+$$
+DELIMITER ;
+DELIMITER $$
+CREATE TRIGGER `trg_prevent_saida_negativa` BEFORE INSERT ON `movimentacoes` FOR EACH ROW BEGIN
+    DECLARE atual INT;
+
+    IF NEW.tipo = 'SAIDA' THEN
+        SELECT quantidade INTO atual FROM produtos WHERE id = NEW.produto_id;
+
+        IF atual < NEW.quantidade THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Estoque insuficiente para realizar a saída';
+        END IF;
+    END IF;
+END
+$$
+DELIMITER ;
+DELIMITER $$
+CREATE TRIGGER `trg_saida_produto` AFTER INSERT ON `movimentacoes` FOR EACH ROW BEGIN
+    IF NEW.tipo = 'SAIDA' THEN
+        UPDATE produtos
+        SET quantidade = quantidade - NEW.quantidade
+        WHERE id = NEW.produto_id;
+    END IF;
+END
+$$
+DELIMITER ;
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `ordem_servico`
+--
+
+CREATE TABLE `ordem_servico` (
+  `id` int(11) NOT NULL,
+  `cliente_nome` varchar(100) DEFAULT NULL,
+  `cliente_contato` varchar(100) DEFAULT NULL,
+  `data_abertura` datetime DEFAULT NULL,
+  `data_fechamento` datetime DEFAULT NULL,
+  `status` varchar(30) DEFAULT NULL,
+  `valor_mao_obra` decimal(10,2) DEFAULT NULL,
+  `observacoes` text DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `ordem_servico_produto`
+--
+
+CREATE TABLE `ordem_servico_produto` (
+  `id` int(11) NOT NULL,
+  `ordem_servico_id` int(11) NOT NULL,
+  `produto_id` int(11) NOT NULL,
+  `quantidade` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `produtos`
+--
+
+CREATE TABLE `produtos` (
+  `id` int(11) NOT NULL,
+  `idUsuario` int(11) NOT NULL,
+  `nome` varchar(100) NOT NULL,
+  `quantidade` int(11) NOT NULL,
+  `preco` decimal(10,2) NOT NULL,
+  `criado_em` timestamp NOT NULL DEFAULT current_timestamp(),
+  `categoria_id` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Despejando dados para a tabela `produtos`
+--
+
+INSERT INTO `produtos` (`id`, `idUsuario`, `nome`, `quantidade`, `preco`, `criado_em`, `categoria_id`) VALUES
+(2, 2, 'Turbina', 6, 20000.00, '2025-05-30 04:49:08', 2),
+(3, 2, 'DSG', 3, 10500.00, '2025-05-30 05:01:06', 1),
+(7, 2, 'testemodal', 18, 333.00, '2025-05-30 17:02:52', 3),
+(12, 2, 'guitarra', 292, 500.00, '2025-06-03 15:20:16', 2),
+(13, 2, 'BAIXO', 17, 700.00, '2025-06-05 15:23:55', 9),
+(14, 2, 'BATERIA teste', 5, 8000.00, '2025-06-05 15:26:04', 3),
+(16, 2, 'Oleo 10w40', 203, 120000.00, '2025-06-05 17:09:35', 10),
+(19, 2, 'Oleo 5w40', 1100, 455.00, '2025-06-05 22:06:03', 11),
+(20, 4, 'teste_apresent', 18, 333.00, '2025-06-06 16:24:32', 9),
+(21, 5, 'Oleo 5w100', 25, 222.00, '2025-06-06 16:34:55', 10);
+
+--
+-- Índices para tabelas despejadas
+--
+
+--
+-- Índices de tabela `categorias`
+--
+ALTER TABLE `categorias`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Índices de tabela `login`
+--
+ALTER TABLE `login`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `email` (`email`);
+
+--
+-- Índices de tabela `movimentacoes`
+--
+ALTER TABLE `movimentacoes`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `produto_id` (`produto_id`);
+
+--
+-- Índices de tabela `ordem_servico`
+--
+ALTER TABLE `ordem_servico`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Índices de tabela `ordem_servico_produto`
+--
+ALTER TABLE `ordem_servico_produto`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `ordem_servico_id` (`ordem_servico_id`),
+  ADD KEY `produto_id` (`produto_id`);
+
+--
+-- Índices de tabela `produtos`
+--
+ALTER TABLE `produtos`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idUsuario` (`idUsuario`),
+  ADD KEY `categoria_id` (`categoria_id`);
+
+--
+-- AUTO_INCREMENT para tabelas despejadas
+--
+
+--
+-- AUTO_INCREMENT de tabela `categorias`
+--
+ALTER TABLE `categorias`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+
+--
+-- AUTO_INCREMENT de tabela `login`
+--
+ALTER TABLE `login`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+
+--
+-- AUTO_INCREMENT de tabela `movimentacoes`
+--
+ALTER TABLE `movimentacoes`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+
+--
+-- AUTO_INCREMENT de tabela `ordem_servico`
+--
+ALTER TABLE `ordem_servico`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de tabela `ordem_servico_produto`
+--
+ALTER TABLE `ordem_servico_produto`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de tabela `produtos`
+--
+ALTER TABLE `produtos`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+
+--
+-- Restrições para tabelas despejadas
+--
+
+--
+-- Restrições para tabelas `movimentacoes`
+--
+ALTER TABLE `movimentacoes`
+  ADD CONSTRAINT `movimentacoes_ibfk_1` FOREIGN KEY (`produto_id`) REFERENCES `produtos` (`id`);
+
+--
+-- Restrições para tabelas `ordem_servico_produto`
+--
+ALTER TABLE `ordem_servico_produto`
+  ADD CONSTRAINT `ordem_servico_produto_ibfk_1` FOREIGN KEY (`ordem_servico_id`) REFERENCES `ordem_servico` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `ordem_servico_produto_ibfk_2` FOREIGN KEY (`produto_id`) REFERENCES `produtos` (`id`) ON DELETE CASCADE;
+
+--
+-- Restrições para tabelas `produtos`
+--
+ALTER TABLE `produtos`
+  ADD CONSTRAINT `produtos_ibfk_1` FOREIGN KEY (`idUsuario`) REFERENCES `login` (`id`),
+  ADD CONSTRAINT `produtos_ibfk_2` FOREIGN KEY (`categoria_id`) REFERENCES `categorias` (`id`);
+COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
